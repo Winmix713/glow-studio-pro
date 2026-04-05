@@ -1,16 +1,20 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+// ─── Landing / Index — redirects to editor ───
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+const Index = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate("/editor?mode=classic", { replace: true });
+  }, [navigate]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="animate-pulse text-muted-foreground">Loading Glow Studio Pro...</div>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
