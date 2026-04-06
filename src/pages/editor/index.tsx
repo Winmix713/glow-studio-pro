@@ -1,4 +1,4 @@
-// ─── V3 Glow Studio Pro — Editor Orchestrator ───
+// ─── V3 Glow Studio Pro — Editor Orchestrator (ComponentSynth Design) ───
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -14,7 +14,7 @@ import { StatusBar } from "@/components/shared/status-bar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Sparkles, Layers, Monitor } from "lucide-react";
+import { Layers, Monitor, Bell, Settings } from "lucide-react";
 
 const STORAGE_KEY = "glow-editor-document-v3";
 
@@ -22,13 +22,11 @@ export default function EditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const modeParam = searchParams.get("mode") as EditorMode | null;
 
-  // Load initial doc: shared URL > localStorage > default
   const [storedDoc, setStoredDoc] = usePersistedState<GlowDocument>(
     STORAGE_KEY,
     createDefaultDocument(modeParam ?? "classic"),
   );
 
-  // Check for share URL on mount
   const [initialized, setInitialized] = useState(false);
   useEffect(() => {
     if (initialized) return;
@@ -41,10 +39,8 @@ export default function EditorPage() {
     }
   }, [initialized, setStoredDoc]);
 
-  // History wrapping the stored doc
   const { state: doc, setState: setDoc, undo, redo, canUndo, canRedo } = useHistory(storedDoc);
 
-  // Sync history state back to persistence
   useEffect(() => {
     setStoredDoc(doc);
   }, [doc, setStoredDoc]);
@@ -53,29 +49,21 @@ export default function EditorPage() {
 
   const handleModeChange = useCallback((newMode: EditorMode) => {
     if (newMode === mode) return;
-
     if (newMode === "studio") {
-      // Classic → Studio: convert
       const result = glowDocumentToClassicState(doc);
       const newDoc = classicStateToGlowDocument(result.state);
       newDoc.id = doc.id;
       newDoc.mode = "studio";
-      // Preserve the existing layers if we're already studio-like
       if (doc.layers.length > 0 && doc.mode === "classic") {
-        // Use converted layers
         setDoc(newDoc);
       } else {
         setDoc({ ...doc, mode: "studio" });
       }
       toast.success("Switched to Studio Mode");
     } else {
-      // Studio → Classic: best-effort
       const result = glowDocumentToClassicState(doc);
       if (result.warnings.length > 0) {
-        toast.warning(
-          "Some advanced settings were simplified in Classic mode",
-          { description: result.warnings.join(" ") }
-        );
+        toast.warning("Some advanced settings were simplified in Classic mode", { description: result.warnings.join(" ") });
       }
       const newDoc = classicStateToGlowDocument(result.state);
       newDoc.id = doc.id;
@@ -83,7 +71,6 @@ export default function EditorPage() {
       setDoc(newDoc);
       toast.success("Switched to Classic Mode");
     }
-
     setSearchParams({ mode: newMode });
   }, [mode, doc, setDoc, setSearchParams]);
 
@@ -96,81 +83,93 @@ export default function EditorPage() {
   }, [doc.layers, doc.selectedLayerId]);
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      {/* Top Bar */}
-      <header className="flex h-11 items-center justify-between border-b border-border bg-card px-4">
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h1 className="text-sm font-bold tracking-wide">GLOW STUDIO PRO</h1>
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">V3</span>
-        </div>
+    <div className="min-h-screen w-full flex items-center justify-center p-0 md:p-4 lg:p-6">
+      {/* Main App Window */}
+      <div className="w-full h-screen md:h-[94vh] md:max-w-[1600px] md:min-h-[700px] bg-cs-panel md:rounded-[2rem] border-0 md:border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
+        {/* Header */}
+        <header className="h-14 flex items-center justify-between px-5 z-20 shrink-0 border-b border-white/5 bg-cs-panel/80 backdrop-blur-md">
+          {/* Logo */}
+          <div className="flex items-center gap-3.5">
+            <div className="w-9 h-9 bg-secondary rounded-xl border border-white/10 flex items-center justify-center relative overflow-hidden">
+              <div className="w-4 h-4 bg-primary rounded-full mix-blend-screen shadow-[0_0_15px_hsl(var(--primary)/0.5)]" />
+              <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary/60 rounded-full mix-blend-screen" />
+              <div className="absolute bottom-1 left-1.5 w-2.5 h-2.5 bg-primary/30 rounded-full mix-blend-screen" />
+            </div>
+            <span className="text-base font-semibold text-white tracking-tight">Glow Studio Pro</span>
+            <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[9px] font-medium text-primary">V3</span>
+          </div>
 
-        {/* Mode Toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={mode === "classic" ? "default" : "ghost"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => handleModeChange("classic")}
-              >
-                <Monitor className="mr-1 h-3 w-3" />
-                Classic
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Single color, auto 4-layer glow</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={mode === "studio" ? "default" : "ghost"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => handleModeChange("studio")}
-              >
-                <Layers className="mr-1 h-3 w-3" />
-                Studio
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Unlimited layers, full control</TooltipContent>
-          </Tooltip>
-        </div>
+          {/* Mode Toggle */}
+          <div className="flex items-center gap-1 rounded-full border border-white/5 bg-white/[0.03] p-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${mode === "classic" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => handleModeChange("classic")}
+                >
+                  <Monitor className="h-3.5 w-3.5" />
+                  Classic
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Single color, auto 4-layer glow</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${mode === "studio" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => handleModeChange("studio")}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  Studio
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Unlimited layers, full control</TooltipContent>
+            </Tooltip>
+          </div>
 
-        <div className="w-32" /> {/* spacer */}
-      </header>
+          {/* Right Actions */}
+          <div className="flex items-center gap-2">
+            <button className="w-9 h-9 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" aria-label="Notifications">
+              <Bell className="w-4 h-4" />
+            </button>
+            <button className="w-9 h-9 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" aria-label="Settings">
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
 
-      {/* Shell */}
-      <main className="flex-1 overflow-hidden">
-        {mode === "classic" ? (
-          <ClassicShell
-            document={doc}
-            onDocumentChange={handleDocChange}
-            onUndo={undo}
-            onRedo={redo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-          />
-        ) : (
-          <StudioShell
-            document={doc}
-            onDocumentChange={handleDocChange}
-            onUndo={undo}
-            onRedo={redo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-          />
-        )}
-      </main>
+        {/* Shell */}
+        <main className="flex-1 overflow-hidden">
+          {mode === "classic" ? (
+            <ClassicShell
+              document={doc}
+              onDocumentChange={handleDocChange}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+            />
+          ) : (
+            <StudioShell
+              document={doc}
+              onDocumentChange={handleDocChange}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+            />
+          )}
+        </main>
 
-      {/* Status Bar */}
-      <StatusBar
-        mode={mode}
-        shape={doc.canvas.shape}
-        layerCount={doc.layers.length}
-        activeLayerName={activeLayerName}
-        power={doc.power}
-      />
+        {/* Status Bar */}
+        <StatusBar
+          mode={mode}
+          shape={doc.canvas.shape}
+          layerCount={doc.layers.length}
+          activeLayerName={activeLayerName}
+          power={doc.power}
+        />
+      </div>
     </div>
   );
 }
