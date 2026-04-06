@@ -1,101 +1,78 @@
 
 
-# Glow Studio Pro — V3 Implementation Plan
+# Glow Studio Pro V3 — ComponentSynth Design Overhaul
 
-## Overview
-A unified professional glow editor with two switchable modes — **Classic** (single-color, auto 4-layer) and **Studio** (unlimited layers, full control) — running on a shared engine with seamless state conversion between modes.
-
----
-
-## Phase 1: Core Engine (`core/glow-engine/`)
-
-### Shared State Model — `GlowDocument`
-- Define the canonical `GlowDocument` type with: `id`, `mode` (classic/studio), `themeMode`, `canvas` (shape, size, background), `colorModel` (baseOklch, recentColors, harmonies), `layers[]`, `groups[]`, `globalAnimation`, `noise`, `meta`
-- All persistence, sharing, and export operates on this single type
-
-### OKLCH Color Science — `oklch.ts`
-- Consolidate V2's full sRGB↔OKLab↔OKLCH conversion chain and V1's color utilities into one shared module
-- Color harmony computation (complementary, analogous, triadic, split-comp)
-- Gamut clamping utilities
-
-### State Converters — `converters.ts`
-- **Classic → Studio**: Convert 4 auto-generated layers into explicit `GlowLayer[]` with position, blur, opacity, blendMode, color derived from LAYER_CONFIG logic
-- **Studio → Classic**: Best-effort reduction — weighted color averaging, blur/size normalization to 4 layers. Drops gradient, clip mask, per-layer animation with user warning toast
-
-### Unified Presets — `presets.ts`
-- Merge V2's 6 presets + V1's 18 presets, tagged as `classic`, `studio`, or `both`
-- Single preset type with mode filtering in UI
-
-### Export Modules — `export/`
-- CSS, Tailwind, React Component, SVG export — all accepting `GlowDocument` as input
-- Share URL encoding/decoding with mode field included
+## Goal
+Redesign the entire Glow Studio Pro V3 UI with the ComponentSynth aesthetic: ultra-dark (#050505/#0c0c0c), precision-tool feel, refined sliders with fill-track + drag handles, dot-pattern canvas backgrounds, glass-panel sections, and smooth micro-interactions. All existing functionality (Classic/Studio modes, converters, engine) stays intact — only the visual layer changes.
 
 ---
 
-## Phase 2: V3 Orchestrator (`pages/editor/index.tsx`)
+## Key Design Changes
 
-### Mode Switching
-- Top bar toggle: "Classic / Studio" with tooltip
-- URL parameter support: `?mode=classic|studio`
-- On mode switch, run appropriate converter; show warning modal if data loss occurs (Studio→Classic with advanced features)
-- Shared undo/redo history (max 50 steps) operating on `GlowDocument`
+### 1. Global Design System Update (`src/index.css`)
+- Replace current theme tokens with ComponentSynth palette: `#050505` body, `#0c0c0c` panels, `#111111` inputs, `white/5` borders
+- Typography: Add Geist Sans (display) alongside existing DM Sans; keep DM Mono for code
+- Add dot-pattern utility class: `radial-gradient(circle, rgba(255,255,255,0.08) 1.5px, transparent 1.5px)` at 32px spacing
+- Add CSS transitions: `all 200ms ease` on interactive elements
+- Add `scale(0.97)` press feedback on buttons
+- Add staggered reveal animations (`animation-delay: 0ms/80ms/160ms`) for sidebar sections
 
-### Persistence
-- `glow-editor-document-v3` — canonical GlowDocument in localStorage (300ms debounce)
-- `glow-editor-recent-colors-v3` — shared color history
-- `glow-editor-ui-v3` — panel/accordion states
+### 2. Custom ComponentSynth Slider (`src/components/ui/cs-slider.tsx`)
+- New slider component matching the reference: dark track (`#111`), filled portion (`#333`) with label text inside, drag grip dots, value readout on right
+- Icon slot on left (using Lucide icons instead of Solar/Iconify)
+- Pointer-capture drag logic for smooth interaction
+- Replace all `<Slider>` usage in Classic & Studio shells
 
-### Share URL
-- Single format: `#s=` base64-encoded GlowDocument (includes mode)
-- Opens in correct mode automatically
+### 3. Custom Toggle Switch (`src/components/ui/cs-toggle.tsx`)
+- Compact toggle matching reference: `bg-[#333]` off / `bg-blue-500/20` on with sliding dot
+- Icon + label layout
 
----
+### 4. Editor Orchestrator Redesign (`src/pages/editor/index.tsx`)
+- Replace current minimal header with ComponentSynth-style header: logo orb (glow circles), "Glow Studio Pro" title, mode toggle as pill buttons, right-side action buttons (preview mode, settings)
+- Rounded app window container (`md:rounded-[2rem]`, `bg-[#0c0c0c]`, `border-white/5`)
+- Status bar integrated into bottom of container
 
-## Phase 3: Classic Shell (`classic-shell.tsx`)
+### 5. Classic Shell Redesign (`src/components/glow-editor/classic-shell.tsx`)
+- Left sidebar: glass-panel sections (`bg-white/[0.02]`, `border-white/5`, `rounded-2xl`) for Layout, Appearance, Color groups
+- Use new CS-Slider for all controls (mask size, glow scale, blur intensity)
+- Color swatches: rounded circles with gradient fills and active ring
+- Segmented toggle for Tailwind/CSS output at bottom
+- "Copy Component Code" blue CTA button with glow shadow
+- Canvas: dot-pattern background, floating toolbar on right (zoom controls), bottom floating toolbar (undo/redo/export)
+- Preview card with hover selection outline (corner dots)
 
-Port V2's GlowEditorV2 experience:
-- **Preview**: Drag-to-place light source on canvas, shape selector (Phone/Card/Hero/Square), noise overlay
-- **Control Panel**: Accordion sections — Presets (6 swatches), Theme toggle, Base Color (native picker + hex + OKLCH sliders), Shape & Light (mask size, glow scale, blur intensity, 2D LightPositionPad), Appearance (noise), Color Harmony, Layer Inspector (read-only 4 layers), Generated CSS
-- **Keyboard**: P (power), R (random), 1-6 (presets), arrows (light nudge), ⌘Z/⌘⇧Z (undo/redo)
-- Internal state adapter: reads from `GlowDocument`, writes back via converter on each commit
+### 6. Studio Shell Redesign (`src/components/glow-editor/studio-shell.tsx`)
+- Apply same glass-panel aesthetic to left sidebar sections
+- Layer list items: darker rows with hover states, refined icon buttons
+- Right sidebar tabs: glass-panel styling per section
+- Canvas: dot-pattern background, floating toolbars matching ComponentSynth
+- Code tab: dark code viewer with line numbers and syntax highlighting
 
----
-
-## Phase 4: Studio Shell (`studio-shell.tsx`)
-
-Port V1's full editor experience with 3-panel layout:
-- **Left Sidebar** (~280px): Layer manager (add/duplicate/reorder/delete), component picker (8 UI elements), template browser (18 presets in 4 categories), user preset manager (save/delete/favorite/import/export), undo/redo/random/export/share/⌘K buttons, power toggle
-- **Center Canvas**: Live preview with per-layer rendering (CSS blur + blend modes), gradient fill (linear/radial/conic), clip masks, per-layer animations, drag-to-move layers, zoom controls, background picker, SVG export, status bar
-- **Right Sidebar** (~320px): 3 tabs — Style (color + OKLCH sliders + recent colors + harmony + blur/opacity/blend + gradient fill + clip mask + per-layer animation), Global (scale/opacity/animation/noise/theme), Code (live CSS editor)
-- **A/B Split View**: Snapshot current state, compare side-by-side
-- **Command Palette** (⌘K): Search commands, keyboard navigation
-
----
-
-## Phase 5: Shared UI Components (`components/shared/`)
-
-- Color controls (OKLCH sliders, color picker, harmony chips, recent colors)
-- Noise toggle + intensity slider
-- Keyboard shortcut handler
-- Status bar component
-- Canvas shape content renderers (Phone, Card, Hero, Square, Desktop, Tablet)
-
----
-
-## Phase 6: Accessibility & Performance
-
-- ARIA live regions for mode/preset/power/shape changes on both shells
-- `role="application"` on canvases, consistent `aria-label`s
-- `React.memo` on all preview subcomponents, `useMemo` for computed values
-- `requestAnimationFrame` throttling for drag/zoom interactions
-- Full keyboard navigation in both modes
+### 7. Shared Components Update
+- `color-controls.tsx`: Glass-panel wrapping, refined color picker with rounded inputs
+- `noise-toggle.tsx`: Use new CS-Toggle component
+- `status-bar.tsx`: Subtle bottom bar with `bg-[#0c0c0c]/90 backdrop-blur-md`
+- `canvas-shapes.tsx`: Add glassmorphism preview card as a component type option
 
 ---
 
-## Design & UX
+## Technical Approach
 
-- **Design system**: DM Sans (body), Syne (headings), DM Mono (code) fonts; OKLCH-based color tokens; glass surface system with backdrop-filter
-- **Dark/Light theme** support across both modes
-- **Mode indicator** in status bar: "Mode: Classic | Studio"
-- **Smooth transition** between modes with state preservation toast feedback
+### Files Created
+- `src/components/ui/cs-slider.tsx` — ComponentSynth-style slider
+- `src/components/ui/cs-toggle.tsx` — ComponentSynth-style toggle
+
+### Files Modified
+- `src/index.css` — New theme tokens, dot-pattern, animations, typography
+- `src/pages/editor/index.tsx` — Redesigned header and container
+- `src/components/glow-editor/classic-shell.tsx` — Full visual overhaul with glass panels, CS sliders, floating toolbars, code export panel
+- `src/components/glow-editor/studio-shell.tsx` — Matching visual overhaul
+- `src/components/shared/color-controls.tsx` — Refined styling
+- `src/components/shared/noise-toggle.tsx` — Use CS-Toggle
+- `src/components/shared/status-bar.tsx` — Glass-blur styling
+- `src/components/shared/canvas-shapes.tsx` — Add glassmorphism card preview
+
+### No Changes To
+- `src/core/glow-engine/*` — Engine, converters, presets, export, share all untouched
+- `src/hooks/*` — History and persistence hooks unchanged
 
